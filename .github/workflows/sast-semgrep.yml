@@ -1,0 +1,68 @@
+name: CI - SAST (Semgrep)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Install Semgrep
+        run: pip install --upgrade semgrep
+
+      - name: Run Semgrep (p/ci ruleset) and save outputs
+        id: semgrep_scan
+        run: |
+          semgrep scan --config p/ci \
+            --json --json-output=semgrep.json \
+            --sarif --sarif-output=semgrep.sarif \
+            --timeout 300 || true
+
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: semgrep.sarif
+
+      - name: Upload semgrep JSON (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-findings
+          path: semgrep.json
+
+      - name: Fail job on HIGH / CRITICAL findings (custom threshold)
+        if: always()
+        run: |
+          if [ ! -f semgrep.json ]; then
+            echo "semgrep.json not found, skipping threshold check"
+            exit 0
+          fi
+
+          severities=$(jq -r '.results[] |
+            (.extra.metadata.severity //
+             .extra.metadata["security-severity"] //
+             .extra.severity //
+             .severity //
+             "UNKNOWN")' semgrep.json | tr '[:lower:]' '[:upper:]' || true)
+
+          echo "Found severities:"
+          echo "$severities"
+
+          if echo "$severities" | grep -qE 'CRITICAL|HIGH|ERROR'; then
+            echo "::error ::Semgrep found HIGH/CRITICAL findings. Failing job."
+            exit 1
+          else
+            echo "No HIGH/CRITICAL findings - continuing."
+          fi
