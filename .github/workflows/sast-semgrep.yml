@@ -6,6 +6,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   semgrep:
     runs-on: ubuntu-latest
@@ -23,16 +27,14 @@ jobs:
       - name: Install Semgrep
         run: pip install --upgrade semgrep
 
-      - name: Run Semgrep (p/ci ruleset) and save outputs
-        id: semgrep_scan
-        run: |
-          semgrep scan --config p/ci \
-            --json --json-output=semgrep.json \
-            --sarif --sarif-output=semgrep.sarif \
-            --timeout 300 || true
+      - name: Run Semgrep (JSON output)
+        run: semgrep scan --config p/ci --json --output=semgrep.json --timeout 300 || true
+
+      - name: Run Semgrep (SARIF output)
+        run: semgrep scan --config p/ci --sarif --output=semgrep.sarif --timeout 300 || true
 
       - name: Upload SARIF to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep.sarif
 
