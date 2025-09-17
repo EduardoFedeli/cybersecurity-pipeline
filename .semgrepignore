@@ -1,0 +1,9 @@
+echo "node_modules/
+vendor/
+dist/
+build/
+coverage/
+.env" > .semgrepignore
+
+mkdir -p .github/workflows
+nano .github/workflows/sast-semgrep.yml
