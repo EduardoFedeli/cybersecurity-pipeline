@@ -11,6 +11,8 @@ Ferramenta Utilizada: Semgrep (GitHub Actions CI)
 
 Pipeline: Execução automática em push e pull_request
 
+Link do github: https://github.com/EduardoFedeli/cybersecurity-pipeline
+
 🔎 Resumo da Análise
 
 Total de arquivos analisados: 45
