@@ -19,7 +19,7 @@ jobs:
         with:
           project: "MeuProjeto"
           path: "."
-          format: "HTML,JSON"
+          format: "ALL"
           out: "reports"
 
       - name: Upload dependency-check report
