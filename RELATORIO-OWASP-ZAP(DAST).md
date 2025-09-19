@@ -80,5 +80,3 @@ Revisão de scripts externos e remoção de funções JS inseguras.
 Ajuste de cabeçalhos de segurança (CSP, COOP, COEP).
 
 Remoção de comentários de código expostos em produção.
-
-📤 Esse relatório deve ser anexado como parte da entrega da Tarefa 2.
