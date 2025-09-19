@@ -1,4 +1,4 @@
-name: CD - DAST (OWASP ZAP)
+name: CD - DAST (OWASP ZAP) - Debuggable
 
 on:
   workflow_dispatch:
@@ -12,16 +12,46 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Run OWASP ZAP Docker Baseline
+      - name: Show runner info (debug)
         run: |
-          docker run --rm -v $(pwd):/zap/wrk/:rw \
-            ghcr.io/zaproxy/zaproxy:stable \
-            zap-baseline.py -t http://juice-shop.herokuapp.com -g gen.conf -r zap_report.html -J zap_report.json
+          echo "Runner: $(uname -a)"
+          docker --version || echo "docker not available"
 
-      - name: Upload ZAP reports
+      - name: Check target connectivity
+        run: |
+          TARGET="http://juice-shop.herokuapp.com" # <--- ajuste se usar outro target
+          echo "Testing connectivity to $TARGET"
+          # tenta 3x e mostra cabeçalho
+          for i in 1 2 3; do
+            echo "Attempt $i"
+            curl -I --max-time 15 "$TARGET" && break || sleep 2
+          done
+
+      - name: Run OWASP ZAP Baseline (Docker)
+        env:
+          TARGET: "http://juice-shop.herokuapp.com" # <--- ajuste sua URL de staging aqui
+        run: |
+          set -o pipefail
+          # roda zap-baseline.py e redireciona stdout/stderr pra arquivo de log
+          docker run --rm -v "${{ github.workspace }}":/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t "$TARGET" -r zap_report.html -J zap_report.json -s "xss,sqli,auth" > zap_run.log 2>&1 || echo "zap-baseline exited non-zero (see zap_run.log)"
+
+      - name: Show last 200 lines of ZAP run log (if any)
+        if: always()
+        run: |
+          echo "=== ZAP runtime log (tail) ==="
+          if [ -f zap_run.log ]; then
+            tail -n 200 zap_run.log || true
+          else
+            echo "zap_run.log not found"
+          fi
+
+      - name: Upload ZAP reports and logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: zap-report
           path: |
             zap_report.html
             zap_report.json
+            zap_run.log
